@@ -1,6 +1,6 @@
 open Reprocessing;
 
-let fHeight = 800;
+let fHeight = 700;
 
 let fWidth = 600;
 
@@ -21,7 +21,7 @@ let setup = (env) => {
   Env.size(~width=fWidth, ~height=fHeight, env);
   {
     gameState: Paused,
-    font: Draw.loadFont(~filename="/assets/font.fnt", env),
+    font: Draw.loadFont(~filename="assets/font.fnt", env),
     mouseDown: false,
     time: 0.0
   }
