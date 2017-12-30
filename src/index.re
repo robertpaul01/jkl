@@ -26,32 +26,38 @@ type runningT =
 
 type stateT = {
   gameState: runningT,
-  obs: list((float, float)),
+  obs: list((int, int)),
   yOffset: float,
   font: fontT,
   mouseDown: bool,
   time: float
 };
 
-let setup = (env) => {
+let setup = env => {
   Env.size(~width=fWidth, ~height=fHeight, env);
   {
     gameState: Paused,
-    obs: [(float_of_int(posJ), 0.), (float_of_int(posK), (-15.)), (float_of_int(posL), (-40.))],
+    obs: [(posJ, 0), (posK, - height * 2), (posL, - height)],
     yOffset: 2.0,
     font: Draw.loadFont(~filename="assets/font.fnt", env),
     mouseDown: false,
     time: 0.0
-  }
+  };
 };
 
 let generateNewObs = ({obs, yOffset}) =>
-  List.map(((x, y)) => (x, y +. yOffset > float_of_int(fHeight) ? (-10.) : y +. yOffset), obs);
+  List.map(
+    ((x, y)) => (
+      x,
+      y + int_of_float(yOffset) > fHeight ? (-10) : y + int_of_float(yOffset)
+    ),
+    obs
+  );
 
 let drawObs = ({yOffset, obs}, env) =>
   List.iter(
     ((x, y)) =>
-      Draw.rect(~pos=(int_of_float(x), int_of_float(y +. yOffset)), ~width, ~height, env),
+      Draw.rect(~pos=(x, y + int_of_float(yOffset)), ~width, ~height, env),
     obs
   );
 
@@ -77,7 +83,7 @@ let drawButtons = (state, env) => {
     ~body=Env.keyPressed(L, env) ? "L" : "l",
     ~pos=(posL + width / 2 - buffer, bottomOffset + height / 4),
     env
-  )
+  );
 };
 
 let draw = ({gameState, time, font, yOffset} as state, env) => {
@@ -90,11 +96,16 @@ let draw = ({gameState, time, font, yOffset} as state, env) => {
     | Running =>
       Draw.text(~font, ~body=string_of_float(time), ~pos=(0, 0), env);
       drawObs(state, env);
-      {...state, obs: generateNewObs(state), time: time +. deltaTime, yOffset: yOffset +. 0.05}
+      {
+        ...state,
+        obs: generateNewObs(state),
+        time: time +. deltaTime,
+        yOffset: yOffset +. 0.05
+      };
     | Fail => state
     | Restart => state
     };
-  {...state, mouseDown: false}
+  {...state, mouseDown: false};
 };
 
 let mouseDown = (state, _) => {...state, mouseDown: true};
