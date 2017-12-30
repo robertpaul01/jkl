@@ -21,12 +21,12 @@ let posL = width * 2 + buffer * 2;
 type runningT =
   | Start
   | Running
+  | Success
   | Fail;
 
 type stateT = {
   gameState: runningT,
-  obs: list((int, int)),
-  lastY: int,
+  obs: list((int, int, bool)),
   yOffset: int,
   font: fontT,
   time: float
@@ -36,9 +36,9 @@ let randomButton = lastY => {
   let rand = Utils.random(~min=0, ~max=3);
   let button =
     switch rand {
-    | 0 => (posJ, lastY - height)
-    | 1 => (posK, lastY - height)
-    | 2 => (posL, lastY - height)
+    | 0 => (posJ, lastY - height, false)
+    | 1 => (posK, lastY - height, false)
+    | 2 => (posL, lastY - height, false)
     | _ => assert false
     };
   button;
@@ -46,10 +46,7 @@ let randomButton = lastY => {
 
 let initialState = env => {
   gameState: Start,
-  lastY: 0,
   obs: [
-    randomButton(- height * 12),
-    randomButton(- height * 11),
     randomButton(- height * 10),
     randomButton(- height * 9),
     randomButton(- height * 8),
@@ -59,10 +56,9 @@ let initialState = env => {
     randomButton(- height * 4),
     randomButton(- height * 3),
     randomButton(- height * 2),
-    randomButton(- height * 1),
-    randomButton(0)
+    randomButton(- height * 1)
   ],
-  yOffset: 5,
+  yOffset: 0,
   font: Draw.loadFont(~filename="assets/font.fnt", env),
   time: 0.0
 };
@@ -72,15 +68,12 @@ let setup = env => {
   initialState(env);
 };
 
-let generateNewObs = ({obs, yOffset, lastY}) =>
-  List.map(
-    ((x, y)) => y + yOffset > fHeight ? randomButton(lastY) : (x, y),
-    obs
-  );
+let generateNewObs = ({obs}, lastY) =>
+  List.map(((_, _, flag) as ob) => flag ? randomButton(lastY) : ob, obs);
 
 let drawObs = ({yOffset, obs}, env) =>
   List.iter(
-    ((x, y)) => Draw.rect(~pos=(x, y + yOffset), ~width, ~height, env),
+    ((x, y, _)) => Draw.rect(~pos=(x, y + yOffset), ~width, ~height, env),
     obs
   );
 
@@ -112,6 +105,13 @@ let drawButtons = (state, env) => {
 let checkStartGame = env =>
   Env.keyPressed(J, env) || Env.keyPressed(K, env) || Env.keyPressed(L, env);
 
+let checkButtonPress = ({yOffset, obs}, pos) =>
+  List.exists(
+    ((x, y, _)) => y + yOffset >= fHeight - height * 2 && x == pos,
+    obs
+  ) ?
+    Success : Fail;
+
 let draw = ({gameState, time, font, yOffset, obs} as state, env) => {
   Draw.background(Utils.color(~r=190, ~g=190, ~b=190, ~a=255), env);
   drawButtons(state, env);
@@ -120,28 +120,63 @@ let draw = ({gameState, time, font, yOffset, obs} as state, env) => {
     switch gameState {
     | Start => {...state, gameState: checkStartGame(env) ? Running : Start}
     | Running =>
-      Draw.text(~font, ~body=string_of_float(time), ~pos=(0, 0), env);
+      Draw.text(
+        ~font,
+        ~body=string_of_int(int_of_float(time)),
+        ~pos=(0, 0),
+        env
+      );
       drawObs(state, env);
+      let (gameState, keyPos) =
+        switch (
+          Env.keyPressed(J, env),
+          Env.keyPressed(K, env),
+          Env.keyPressed(L, env)
+        ) {
+        | (true, false, false) => (checkButtonPress(state, posJ), posJ)
+        | (false, true, false) => (checkButtonPress(state, posK), posK)
+        | (false, false, true) => (checkButtonPress(state, posL), posL)
+        | _ => (Running, (-1))
+        };
       {
         ...state,
         obs:
-          List.fast_sort(((_, ay), (_, by)) => ay - by, generateNewObs(state)),
+          gameState == Success ?
+            List.map(
+              ((x, y, _) as ob) =>
+                y + yOffset >= fHeight - height * 2 && x == keyPos ?
+                  (x, y, true) : ob,
+              obs
+            ) :
+            obs,
         gameState:
-          List.exists(((_, y)) => y + yOffset >= fHeight, obs) ?
-            Running : Running,
+          List.exists(((_, y, _)) => y + yOffset >= fHeight + height / 4, obs) ?
+            Fail : gameState,
         time: time +. deltaTime,
-        yOffset: yOffset + 10
+        yOffset: yOffset + 5
+      };
+    | Success =>
+      drawObs(state, env);
+      let (_, lastY, _) = List.hd(state.obs);
+      {
+        ...state,
+        gameState: Running,
+        obs:
+          List.fast_sort(
+            ((_, ay, _), (_, by, _)) => ay - by,
+            generateNewObs(state, lastY)
+          )
       };
     | Fail =>
       Draw.text(
         ~font,
-        ~body="Final time: " ++ string_of_float(time),
+        ~body="Final time: " ++ string_of_int(int_of_float(time)),
         ~pos=(0, 0),
         env
       );
       checkStartGame(env) ? {...initialState(env), gameState: Running} : state;
     };
-  {...state, lastY: snd(List.hd(state.obs))};
+  state;
 };
 
 run(~setup, ~draw, ());
