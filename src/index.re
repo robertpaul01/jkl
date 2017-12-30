@@ -27,9 +27,10 @@ type runningT =
 type stateT = {
   gameState: runningT,
   obs: list((int, int, bool)),
+  speed: int,
   yOffset: int,
-  font: fontT,
-  time: float
+  score: int,
+  font: fontT
 };
 
 let randomButton = lastY => {
@@ -58,9 +59,10 @@ let initialState = env => {
     randomButton(- height * 2),
     randomButton(- height * 1)
   ],
+  speed: 3,
   yOffset: 0,
-  font: Draw.loadFont(~filename="assets/font.fnt", env),
-  time: 0.0
+  score: 0,
+  font: Draw.loadFont(~filename="assets/font.fnt", env)
 };
 
 let setup = env => {
@@ -112,20 +114,14 @@ let checkButtonPress = ({yOffset, obs}, pos) =>
   ) ?
     Success : Fail;
 
-let draw = ({gameState, time, font, yOffset, obs} as state, env) => {
+let draw = ({gameState, font, yOffset, obs, speed, score} as state, env) => {
   Draw.background(Utils.color(~r=190, ~g=190, ~b=190, ~a=255), env);
   drawButtons(state, env);
-  let deltaTime = Env.deltaTime(env);
   let state =
     switch gameState {
     | Start => {...state, gameState: checkStartGame(env) ? Running : Start}
     | Running =>
-      Draw.text(
-        ~font,
-        ~body=string_of_int(int_of_float(time)),
-        ~pos=(0, 0),
-        env
-      );
+      Draw.text(~font, ~body=string_of_int(score), ~pos=(0, 0), env);
       drawObs(state, env);
       let (gameState, keyPos) =
         switch (
@@ -152,10 +148,11 @@ let draw = ({gameState, time, font, yOffset, obs} as state, env) => {
         gameState:
           List.exists(((_, y, _)) => y + yOffset >= fHeight + height / 4, obs) ?
             Fail : gameState,
-        time: time +. deltaTime,
-        yOffset: yOffset + 5
+        yOffset: yOffset + speed
       };
     | Success =>
+      let score = score + 1;
+      Draw.text(~font, ~body=string_of_int(score), ~pos=(0, 0), env);
       drawObs(state, env);
       let (_, lastY, _) = List.hd(state.obs);
       {
@@ -165,12 +162,13 @@ let draw = ({gameState, time, font, yOffset, obs} as state, env) => {
           List.fast_sort(
             ((_, ay, _), (_, by, _)) => ay - by,
             generateNewObs(state, lastY)
-          )
+          ),
+        score
       };
     | Fail =>
       Draw.text(
         ~font,
-        ~body="Final time: " ++ string_of_int(int_of_float(time)),
+        ~body="Final score: " ++ string_of_int(score),
         ~pos=(0, 0),
         env
       );
