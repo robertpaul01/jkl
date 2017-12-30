@@ -27,7 +27,7 @@ type runningT =
 type stateT = {
   gameState: runningT,
   obs: list((int, int, bool)),
-  speed: int,
+  speed: float,
   yOffset: int,
   score: int,
   font: fontT
@@ -59,7 +59,7 @@ let initialState = env => {
     randomButton(- height * 2),
     randomButton(- height * 1)
   ],
-  speed: 3,
+  speed: 3.0,
   yOffset: 0,
   score: 0,
   font: Draw.loadFont(~filename="assets/font.fnt", env)
@@ -148,7 +148,8 @@ let draw = ({gameState, font, yOffset, obs, speed, score} as state, env) => {
         gameState:
           List.exists(((_, y, _)) => y + yOffset >= fHeight + height / 4, obs) ?
             Fail : gameState,
-        yOffset: yOffset + speed
+        yOffset: yOffset + int_of_float(speed),
+        speed: speed +. 0.005
       };
     | Success =>
       let score = score + 1;
