@@ -19,45 +19,66 @@ let posK = width + buffer;
 let posL = width * 2 + buffer * 2;
 
 type runningT =
-  | Paused
+  | Start
   | Running
-  | Fail
-  | Restart;
+  | Fail;
 
 type stateT = {
   gameState: runningT,
+  lastY: int,
   obs: list((int, int)),
-  yOffset: float,
+  yOffset: int,
   font: fontT,
-  mouseDown: bool,
   time: float
+};
+
+let randomButton = lastY => {
+  let rand = Utils.random(~min=0, ~max=2);
+  let button =
+    switch rand {
+    | 0 => (posJ, lastY - height)
+    | 1 => (posK, lastY - height)
+    | 2 => (posL, lastY - height)
+    | _ => assert false
+    };
+  button;
+};
+
+let initialState = env => {
+  gameState: Start,
+  lastY: 0,
+  obs: [
+    randomButton(0),
+    randomButton(- height),
+    randomButton(- height * 2),
+    randomButton(- height * 3),
+    randomButton(- height * 4),
+    randomButton(- height * 5),
+    randomButton(- height * 6),
+    randomButton(- height * 7),
+    randomButton(- height * 8),
+    randomButton(- height * 9),
+    randomButton(- height * 10)
+  ],
+  yOffset: 5,
+  font: Draw.loadFont(~filename="assets/font.fnt", env),
+  time: 0.0
 };
 
 let setup = env => {
   Env.size(~width=fWidth, ~height=fHeight, env);
-  {
-    gameState: Paused,
-    obs: [(posJ, 0), (posK, - height * 2), (posL, - height)],
-    yOffset: 2.0,
-    font: Draw.loadFont(~filename="assets/font.fnt", env),
-    mouseDown: false,
-    time: 0.0
-  };
+  initialState(env);
 };
 
-let generateNewObs = ({obs, yOffset}) =>
+let generateNewObs = ({obs, yOffset, lastY}) =>
   List.map(
-    ((x, y)) => (
-      x,
-      y + int_of_float(yOffset) > fHeight ? (-10) : y + int_of_float(yOffset)
-    ),
+    ((x, y)) => y + yOffset > fHeight ? randomButton(lastY) : (x, y),
     obs
   );
 
 let drawObs = ({yOffset, obs}, env) =>
   List.iter(
-    ((x, y)) =>
-      Draw.rect(~pos=(x, y + int_of_float(yOffset)), ~width, ~height, env),
+    ((x, y)) => Draw.rect(~pos=(x, y + yOffset), ~width, ~height, env),
     obs
   );
 
@@ -68,46 +89,57 @@ let drawButtons = (state, env) => {
   Draw.rect(~pos=(posL, bottomOffset), ~width, ~height, env);
   Draw.text(
     ~font=state.font,
-    ~body=Env.keyPressed(J, env) ? "J" : "j",
+    ~body="j",
     ~pos=(posJ + width / 2 - buffer, bottomOffset + height / 4),
     env
   );
   Draw.text(
     ~font=state.font,
-    ~body=Env.keyPressed(K, env) ? "K" : "k",
+    ~body="k",
     ~pos=(posK + width / 2 - buffer, bottomOffset + height / 4),
     env
   );
   Draw.text(
     ~font=state.font,
-    ~body=Env.keyPressed(L, env) ? "L" : "l",
+    ~body="l",
     ~pos=(posL + width / 2 - buffer, bottomOffset + height / 4),
     env
   );
 };
 
-let draw = ({gameState, time, font, yOffset} as state, env) => {
+let checkStartGame = env =>
+  Env.keyPressed(J, env) || Env.keyPressed(K, env) || Env.keyPressed(L, env);
+
+let draw = ({gameState, time, font, yOffset, obs} as state, env) => {
   Draw.background(Utils.color(~r=190, ~g=190, ~b=190, ~a=255), env);
   drawButtons(state, env);
   let deltaTime = Env.deltaTime(env);
   let state =
     switch gameState {
-    | Paused => {...state, gameState: state.mouseDown ? Running : Paused}
+    | Start => {...state, gameState: checkStartGame(env) ? Running : Start}
     | Running =>
       Draw.text(~font, ~body=string_of_float(time), ~pos=(0, 0), env);
       drawObs(state, env);
       {
         ...state,
-        obs: generateNewObs(state),
+        obs:
+          List.fast_sort(((_, ay), (_, by)) => ay - by, generateNewObs(state)),
+        gameState:
+          List.exists(((_, y)) => y + yOffset >= fHeight, obs) ?
+            Running : Running,
         time: time +. deltaTime,
-        yOffset: yOffset +. 0.05
+        yOffset: yOffset + 2
       };
-    | Fail => state
-    | Restart => state
+    | Fail =>
+      Draw.text(
+        ~font,
+        ~body="Final time: " ++ string_of_float(time),
+        ~pos=(0, 0),
+        env
+      );
+      checkStartGame(env) ? {...initialState(env), gameState: Running} : state;
     };
-  {...state, mouseDown: false};
+  {...state, lastY: snd(List.hd(state.obs))};
 };
 
-let mouseDown = (state, _) => {...state, mouseDown: true};
-
-run(~setup, ~draw, ~mouseDown, ());
+run(~setup, ~draw, ());
