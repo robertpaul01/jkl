@@ -25,15 +25,15 @@ type runningT =
 
 type stateT = {
   gameState: runningT,
-  lastY: int,
   obs: list((int, int)),
+  lastY: int,
   yOffset: int,
   font: fontT,
   time: float
 };
 
 let randomButton = lastY => {
-  let rand = Utils.random(~min=0, ~max=2);
+  let rand = Utils.random(~min=0, ~max=3);
   let button =
     switch rand {
     | 0 => (posJ, lastY - height)
@@ -48,17 +48,19 @@ let initialState = env => {
   gameState: Start,
   lastY: 0,
   obs: [
-    randomButton(0),
-    randomButton(- height),
-    randomButton(- height * 2),
-    randomButton(- height * 3),
-    randomButton(- height * 4),
-    randomButton(- height * 5),
-    randomButton(- height * 6),
-    randomButton(- height * 7),
-    randomButton(- height * 8),
+    randomButton(- height * 12),
+    randomButton(- height * 11),
+    randomButton(- height * 10),
     randomButton(- height * 9),
-    randomButton(- height * 10)
+    randomButton(- height * 8),
+    randomButton(- height * 7),
+    randomButton(- height * 6),
+    randomButton(- height * 5),
+    randomButton(- height * 4),
+    randomButton(- height * 3),
+    randomButton(- height * 2),
+    randomButton(- height * 1),
+    randomButton(0)
   ],
   yOffset: 5,
   font: Draw.loadFont(~filename="assets/font.fnt", env),
@@ -128,7 +130,7 @@ let draw = ({gameState, time, font, yOffset, obs} as state, env) => {
           List.exists(((_, y)) => y + yOffset >= fHeight, obs) ?
             Running : Running,
         time: time +. deltaTime,
-        yOffset: yOffset + 2
+        yOffset: yOffset + 10
       };
     | Fail =>
       Draw.text(
