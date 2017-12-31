@@ -121,8 +121,8 @@ let draw = ({gameState, font, yOffset, obs, speed, score} as state, env) => {
     switch gameState {
     | Start => {...state, gameState: checkStartGame(env) ? Running : Start}
     | Running =>
-      Draw.text(~font, ~body=string_of_int(score), ~pos=(0, 0), env);
       drawObs(state, env);
+      Draw.text(~font, ~body=string_of_int(score), ~pos=(0, 0), env);
       let (gameState, keyPos) =
         switch (
           Env.keyPressed(J, env),
@@ -138,9 +138,15 @@ let draw = ({gameState, font, yOffset, obs, speed, score} as state, env) => {
         ...state,
         obs:
           gameState == Success ?
-            List.map(
-              ((x, y, _) as ob) =>
-                y + yOffset >= fHeight - height * 2 && x == keyPos ?
+            List.mapi(
+              (idx, (x, y, _) as ob) =>
+                y
+                + yOffset >= fHeight
+                - height
+                * 2
+                && x == keyPos
+                && idx == List.length(obs)
+                - 1 ?
                   (x, y, true) : ob,
               obs
             ) :
@@ -153,8 +159,8 @@ let draw = ({gameState, font, yOffset, obs, speed, score} as state, env) => {
       };
     | Success =>
       let score = score + 1;
-      Draw.text(~font, ~body=string_of_int(score), ~pos=(0, 0), env);
       drawObs(state, env);
+      Draw.text(~font, ~body=string_of_int(score), ~pos=(0, 0), env);
       let (_, lastY, _) = List.hd(state.obs);
       {
         ...state,
