@@ -107,6 +107,14 @@ let drawButtons = (state, env) => {
 let checkStartGame = env =>
   Env.keyPressed(J, env) || Env.keyPressed(K, env) || Env.keyPressed(L, env);
 
+let markPressedOb = ({obs, yOffset}, keyPos) => {
+  let (x, y, _) as ob = List.nth(obs, List.length(obs) - 1);
+  Js.log(Js.Json.stringifyAny(obs));
+  let newTail =
+    y + yOffset >= fHeight - height * 2 && x == keyPos ? (x, y, true) : ob;
+  List.rev(List.tl(List.rev(obs))) @ [newTail];
+};
+
 let checkButtonPress = ({yOffset, obs}, pos) =>
   List.exists(
     ((x, y, _)) => y + yOffset >= fHeight - height * 2 && x == pos,
@@ -119,7 +127,9 @@ let draw = ({gameState, font, yOffset, obs, speed, score} as state, env) => {
   drawButtons(state, env);
   let state =
     switch gameState {
-    | Start => {...state, gameState: checkStartGame(env) ? Running : Start}
+    | Start =>
+      Draw.text(~font, ~body="Press j, k, or l", ~pos=(0, 0), env);
+      {...state, gameState: checkStartGame(env) ? Running : Start};
     | Running =>
       drawObs(state, env);
       Draw.text(~font, ~body=string_of_int(score), ~pos=(0, 0), env);
@@ -136,21 +146,7 @@ let draw = ({gameState, font, yOffset, obs, speed, score} as state, env) => {
         };
       {
         ...state,
-        obs:
-          gameState == Success ?
-            List.mapi(
-              (idx, (x, y, _) as ob) =>
-                y
-                + yOffset >= fHeight
-                - height
-                * 2
-                && x == keyPos
-                && idx == List.length(obs)
-                - 1 ?
-                  (x, y, true) : ob,
-              obs
-            ) :
-            obs,
+        obs: gameState == Success ? markPressedOb(state, keyPos) : obs,
         gameState:
           List.exists(((_, y, _)) => y + yOffset >= fHeight + height / 4, obs) ?
             Fail : gameState,
@@ -179,6 +175,7 @@ let draw = ({gameState, font, yOffset, obs, speed, score} as state, env) => {
         ~pos=(0, 0),
         env
       );
+      Draw.text(~font, ~body="Press j, k, or l", ~pos=(0, height), env);
       checkStartGame(env) ? {...initialState(env), gameState: Running} : state;
     };
   state;
