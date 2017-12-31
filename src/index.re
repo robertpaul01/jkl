@@ -107,13 +107,13 @@ let drawButtons = (state, env) => {
 let checkStartGame = env =>
   Env.keyPressed(J, env) || Env.keyPressed(K, env) || Env.keyPressed(L, env);
 
-let markPressedOb = ({obs, yOffset}, keyPos) => {
-  let (x, y, _) as ob = List.nth(obs, List.length(obs) - 1);
-  Js.log(Js.Json.stringifyAny(obs));
-  let newTail =
-    y + yOffset >= fHeight - height * 2 && x == keyPos ? (x, y, true) : ob;
-  List.rev(List.tl(List.rev(obs))) @ [newTail];
-};
+let rec markPressedOb = (obs, yOffset, keyPos) =>
+  switch obs {
+  | [(x, y, _) as ob] =>
+    y + yOffset >= fHeight - height * 2 && x == keyPos ? [(x, y, true)] : [ob]
+  | [x, ...xs] => [x] @ markPressedOb(xs, yOffset, keyPos)
+  | _ => assert false
+  };
 
 let checkButtonPress = ({yOffset, obs}, pos) =>
   List.exists(
@@ -146,7 +146,7 @@ let draw = ({gameState, font, yOffset, obs, speed, score} as state, env) => {
         };
       {
         ...state,
-        obs: gameState == Success ? markPressedOb(state, keyPos) : obs,
+        obs: gameState == Success ? markPressedOb(obs, yOffset, keyPos) : obs,
         gameState:
           List.exists(((_, y, _)) => y + yOffset >= fHeight + height / 4, obs) ?
             Fail : gameState,
