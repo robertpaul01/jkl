@@ -30,7 +30,9 @@ type stateT = {
   speed: float,
   yOffset: int,
   score: int,
-  font: fontT
+  font: fontT,
+  bg: imageT,
+  block: imageT
 };
 
 let randomButton = lastY => {
@@ -62,7 +64,9 @@ let initialState = env => {
   speed: 3.0,
   yOffset: 0,
   score: 0,
-  font: Draw.loadFont(~filename="assets/font.fnt", env)
+  font: Draw.loadFont(~filename="assets/font.fnt", env),
+  bg: Draw.loadImage(~filename="assets/bg.png", ~isPixel=true, env),
+  block: Draw.loadImage(~filename="assets/block.png", ~isPixel=true, env)
 };
 
 let setup = env => {
@@ -73,41 +77,40 @@ let setup = env => {
 let generateNewObs = ({obs}, lastY) =>
   List.map(((_, _, flag) as ob) => flag ? randomButton(lastY) : ob, obs);
 
-let drawObs = ({yOffset, obs}, env) =>
+let drawBlock = ({block}, ~pos, ~width, ~height, env) => {
+  let (p, _) = pos;
+  let texPos = (144, 49);
+  let texPos = p == posK ? (160, 49) : texPos;
+  let texPos = p == posL ? (176, 49) : texPos;
+  Draw.subImage(
+    block,
+    ~pos,
+    ~width,
+    ~height,
+    ~texPos,
+    ~texWidth=16,
+    ~texHeight=16,
+    env
+  );
+};
+
+let drawObs = ({yOffset, obs} as state, env) =>
   List.iter(
-    ((x, y, _)) => Draw.rect(~pos=(x, y + yOffset), ~width, ~height, env),
+    ((x, y, _)) =>
+      drawBlock(state, ~pos=(x, y + yOffset), ~width, ~height, env),
     obs
   );
 
 let drawButtons = (state, env) => {
   Draw.fill(Utils.color(~r=49, ~g=79, ~b=79, ~a=255), env);
-  Draw.rect(~pos=(posJ, bottomOffset), ~width, ~height, env);
-  Draw.rect(~pos=(posK, bottomOffset), ~width, ~height, env);
-  Draw.rect(~pos=(posL, bottomOffset), ~width, ~height, env);
-  Draw.text(
-    ~font=state.font,
-    ~body="j",
-    ~pos=(posJ + width / 2 - buffer, bottomOffset + height / 4),
-    env
-  );
-  Draw.text(
-    ~font=state.font,
-    ~body="k",
-    ~pos=(posK + width / 2 - buffer, bottomOffset + height / 4),
-    env
-  );
-  Draw.text(
-    ~font=state.font,
-    ~body="l",
-    ~pos=(posL + width / 2 - buffer, bottomOffset + height / 4),
-    env
-  );
+  drawBlock(state, ~pos=(posJ, bottomOffset), ~width, ~height, env);
+  drawBlock(state, ~pos=(posK, bottomOffset), ~width, ~height, env);
+  drawBlock(state, ~pos=(posL, bottomOffset), ~width, ~height, env);
 };
 
-let checkStartGame = env =>
-  Env.keyPressed(J, env) || Env.keyPressed(K, env) || Env.keyPressed(L, env);
+let checkStartGame = env => Env.keyPressed(Space, env);
 
-let rec markPressedOb = (obs, yOffset, keyPos) =>
+let rec markPressedOb = (obs: list((int, int, bool)), yOffset, keyPos) =>
   switch obs {
   | [(x, y, _) as ob] =>
     y + yOffset >= fHeight - height * 2 && x == keyPos ? [(x, y, true)] : [ob]
@@ -122,13 +125,23 @@ let checkButtonPress = ({yOffset, obs}, pos) =>
   ) ?
     Success : Fail;
 
-let draw = ({gameState, font, yOffset, obs, speed, score} as state, env) => {
+let draw = ({gameState, font, yOffset, obs, speed, score, bg} as state, env) => {
   Draw.background(Utils.color(~r=190, ~g=190, ~b=190, ~a=255), env);
+  Draw.subImage(
+    bg,
+    ~pos=(0, 0),
+    ~width=fWidth,
+    ~height=fHeight,
+    ~texPos=(0, 0),
+    ~texWidth=385,
+    ~texHeight=216,
+    env
+  );
   drawButtons(state, env);
   let state =
     switch gameState {
     | Start =>
-      Draw.text(~font, ~body="Press j, k, or l", ~pos=(0, 0), env);
+      Draw.text(~font, ~body="Press space", ~pos=(0, 0), env);
       {...state, gameState: checkStartGame(env) ? Running : Start};
     | Running =>
       drawObs(state, env);
@@ -175,7 +188,7 @@ let draw = ({gameState, font, yOffset, obs, speed, score} as state, env) => {
         ~pos=(0, 0),
         env
       );
-      Draw.text(~font, ~body="Press j, k, or l", ~pos=(0, height), env);
+      Draw.text(~font, ~body="Press space", ~pos=(0, height), env);
       checkStartGame(env) ? {...initialState(env), gameState: Running} : state;
     };
   state;
