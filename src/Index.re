@@ -59,7 +59,7 @@ let initialState = env => {
     randomButton(- height * 4),
     randomButton(- height * 3),
     randomButton(- height * 2),
-    randomButton(- height * 1)
+    randomButton(- height)
   ],
   speed: 3.0,
   yOffset: 0,
@@ -75,7 +75,10 @@ let setup = env => {
 };
 
 let generateNewObs = ({obs}, lastY) =>
-  List.map(((_, _, flag) as ob) => flag ? randomButton(lastY) : ob, obs);
+  List.fast_sort(
+    ((_, ay, _), (_, by, _)) => ay - by,
+    List.map(((_, _, flag) as ob) => flag ? randomButton(lastY) : ob, obs)
+  );
 
 let drawBlock = ({block}, ~pos, ~width, ~height, env) => {
   let (p, _) = pos;
@@ -117,6 +120,10 @@ let rec markPressedOb = (obs: list((int, int, bool)), yOffset, keyPos) =>
   | [x, ...xs] => [x] @ markPressedOb(xs, yOffset, keyPos)
   | _ => assert false
   };
+
+let checkMissedOb = ({yOffset, obs, gameState}) =>
+  List.exists(((_, y, _)) => y + yOffset >= fHeight + height / 4, obs) ?
+    Fail : gameState;
 
 let checkButtonPress = ({yOffset, obs}, pos) =>
   List.exists(
@@ -160,9 +167,7 @@ let draw = ({gameState, font, yOffset, obs, speed, score, bg} as state, env) => 
       {
         ...state,
         obs: gameState == Success ? markPressedOb(obs, yOffset, keyPos) : obs,
-        gameState:
-          List.exists(((_, y, _)) => y + yOffset >= fHeight + height / 4, obs) ?
-            Fail : gameState,
+        gameState: checkMissedOb({...state, gameState}),
         yOffset: yOffset + int_of_float(speed),
         speed: speed +. 0.005
       };
@@ -171,16 +176,7 @@ let draw = ({gameState, font, yOffset, obs, speed, score, bg} as state, env) => 
       drawObs(state, env);
       Draw.text(~font, ~body=string_of_int(score), ~pos=(0, 0), env);
       let (_, lastY, _) = List.hd(state.obs);
-      {
-        ...state,
-        gameState: Running,
-        obs:
-          List.fast_sort(
-            ((_, ay, _), (_, by, _)) => ay - by,
-            generateNewObs(state, lastY)
-          ),
-        score
-      };
+      {...state, gameState: Running, obs: generateNewObs(state, lastY), score};
     | Fail =>
       Draw.text(
         ~font,
