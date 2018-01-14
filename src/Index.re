@@ -169,7 +169,7 @@ let draw = ({gameState, font, yOffset, obs, speed, score, bg} as state, env) => 
         obs: gameState == Success ? markPressedOb(obs, yOffset, keyPos) : obs,
         gameState: checkMissedOb({...state, gameState}),
         yOffset: yOffset + int_of_float(speed),
-        speed: speed +. 0.005
+        speed: speed +. 0.002
       };
     | Success =>
       let score = score + 1;
